@@ -84,17 +84,26 @@ Col clockOffCol = Col(  0,   0,   0);
 Col clockAMCol  = Col( 51, 213, 255);
 Col clockPMCol  = Col(255,   0,  88);
 
-int lampBrightness = 3;
+int lampBrightness = 0;
+int clockMode = 0;
+
+bool timerActive = false;
+int timerLength = 750;
+int timer = 0;
 
 // ================================
 // Settings
 // ================================
 
-int brightness = 3;
+float brightness = 1;
+float nightModeBrightness = 0.2f;
+
 bool twelveHour = true;
 
 int lampOnHour = 17;
-int lampOffHour = 21;
+int lampOffHour = 0;
+
+int defaultMode = CLOCK;
 
 // ================================
 // Main
@@ -103,15 +112,14 @@ int lampOffHour = 21;
 void setup() {
   rtc.Begin();
   rtc.SetIsRunning(true);
-  rtc.SetDateTime(RtcDateTime(__DATE__, __TIME__));
   
   pixels.begin();
-  pixels.setBrightness(brightness);
+  pixels.setBrightness(round(255 * brightness));
 
   pinMode(BTN1PIN, INPUT_PULLUP);
   pinMode(BTN2PIN, INPUT_PULLUP);
 
-  Serial.begin(9600);
+  mode = defaultMode;
 }
 
 void loop() {
@@ -153,21 +161,52 @@ void runMode(int btnMap)
 void modeLight(int btnMap)
 {
   if((btnMap >> 2) & 0x1) changeMode(CLOCK);
+  if((btnMap >> 3) & 0x1) changeMode(SETTINGS);
   if((btnMap >> 0) & 0x1)
   {
     lampBrightness += 1;
     if(lampBrightness >= BRIGHTNESSSTEPS) lampBrightness = 0;
+
+    clearLamp();
+
+    timerActive = true;
+    timer = millis();
   }
   
-  Col white = Col((256 / BRIGHTNESSSTEPS) * lampBrightness - 1);
-  fillLamp(white.r, white.g, white.b);
+  Col white = changeBrightness(Col(255), (lampBrightness + 1) * float(1.0f / BRIGHTNESSSTEPS));
+
+  if(timerActive)
+  {
+    progressDisplay(lampBrightness, white);
+    if(millis() - timer >= timerLength) timerActive = false;
+  }
+  else fillLamp(white);
 }
 
 void modeClock(int btnMap)
 {
   if((btnMap >> 2) & 0x1) changeMode(LIGHT);
+  if((btnMap >> 3) & 0x1) changeMode(SETTINGS);
+  if((btnMap >> 0) & 0x1) clockMode += 1; if(clockMode >= 4) clockMode = 0;
   
   dt = rtc.GetDateTime();
+
+  Col amCol = clockAMCol;
+  Col pmCol = clockPMCol;
+  Col hourCol = clockHourCol;
+  Col minCol = clockMinCol;
+  Col secCol = clockSecCol;
+  Col offCol = clockOffCol;
+
+  if(clockMode == 3)
+  {
+    amCol   = changeBrightness(amCol,   nightModeBrightness);
+    pmCol   = changeBrightness(pmCol,   nightModeBrightness);
+    hourCol = changeBrightness(hourCol, nightModeBrightness);
+    minCol  = changeBrightness(minCol,  nightModeBrightness);
+    secCol  = changeBrightness(secCol,  nightModeBrightness);
+    offCol  = changeBrightness(offCol,  nightModeBrightness);
+  }
 
   if(twelveHour)
   {
@@ -180,39 +219,39 @@ void modeClock(int btnMap)
     if(hour > 12) hour -= 12;
     if(hour == 0) hour  = 12;
     
-    binaryDisplay(hour, 6, 2, pm ? clockPMCol : clockAMCol, clockOffCol);
+    binaryDisplay(hour, 6, 2, pm ? pmCol : amCol, offCol);
   }
-  else binaryDisplay(dt.Hour(), 6, 2, clockHourCol, clockOffCol);
+  else binaryDisplay(dt.Hour(), 6, 2, hourCol, offCol);
   
-  binaryDisplay(dt.Minute(), 4, 2, clockMinCol, clockOffCol);
-  binaryDisplay(dt.Second(), 2, 2, clockSecCol, clockOffCol);
+  binaryDisplay(dt.Minute(), 4, 2, minCol, offCol);
+  binaryDisplay(dt.Second(), 2, 2, secCol, offCol);
 
   if(lampOffHour < lampOnHour) lampOffHour += 24;
-  if(dt.Hour() > lampOnHour && dt.Hour() < lampOffHour)
+  if((dt.Hour() > lampOnHour && dt.Hour() < lampOffHour && clockMode == 0) || clockMode == 2)
   {
     Col white = Col(255);
 
-    setPanel(0, white.r, white.g, white.b);
-    setPanel(1, white.r, white.g, white.b);
-    setPanel(8, white.r, white.g, white.b);
-    setPanel(9, white.r, white.g, white.b);
+    setPanel(0, white);
+    setPanel(1, white);
+    setPanel(8, white);
+    setPanel(9, white);
   }
 
   if(lampOffHour > 23) lampOffHour -= 24;
-  if(dt.Hour() >= lampOffHour)
+  if((dt.Hour() >= lampOffHour && clockMode == 0 && clockMode != 2) || clockMode == 1 || clockMode == 3)
   {
-    Col white = Col(0);
+    Col off = Col(0);
 
-    setPanel(0, white.r, white.g, white.b);
-    setPanel(1, white.r, white.g, white.b);
-    setPanel(8, white.r, white.g, white.b);
-    setPanel(9, white.r, white.g, white.b);
+    setPanel(0, off);
+    setPanel(1, off);
+    setPanel(8, off);
+    setPanel(9, off);
   }
 }
 
 void modeSettings(int btnMap)
 {
-  
+  if((btnMap >> 2) & 0x1) changeMode(defaultMode);
 }
 
 void modeEffects(int btnMap)
@@ -221,8 +260,19 @@ void modeEffects(int btnMap)
 }
 
 // ================================
-// Util
+// Displays
 // ================================
+
+void progressDisplay(int num, Col col)
+{
+  if(num >= NUMPANELS) num = NUMPANELS - 1;
+  num++;
+
+  for(int i = 0; i < num; i++)
+  {
+    setPanel(i, col);
+  }
+}
 
 void binaryDisplay(int num, int panelOffset, int numPanels, Col on, Col off)
 {
@@ -238,13 +288,17 @@ void binaryDisplay(int num, int panelOffset, int numPanels, Col on, Col off)
       
       for(int i = 0; i < resolution; i++)
       {
-        setPixel(panelIDs[panel + panelOffset][digit * resolution + i], col.r, col.g, col.b);
+        setPixel(panelIDs[panel + panelOffset][digit * resolution + i], col);
       }
 
       num = num >> 1;
     }
   }
 }
+
+// ================================
+// Util
+// ================================
 
 int getBtnMap()
 {
@@ -257,7 +311,11 @@ int getBtnMap()
     if(digitalRead(btnPins[i]) == LOW)
     {
       if(!btnJustPressed[i]) {btnJustPressed[i] = true; btnTimer[i] = millis();}
-      if((millis() - btnTimer[i] > LONGPRESSTIME) && (btnJustLongPressed[i] == false)) btnMap |= 0b10;
+      if((millis() - btnTimer[i] > LONGPRESSTIME) && (btnJustLongPressed[i] == false))
+      {
+        btnJustLongPressed[i] = true;
+        btnMap |= 0b10;
+      }
     }
     else
     {
@@ -286,28 +344,50 @@ void changeMode(int newMode)
   pixels.show();
 }
 
-void setPixel(int id, int r, int g, int b)
+Col changeBrightness(Col col, float brightness)
 {
-  pixels.setPixelColor(id, pixels.Color(r, g, b));
+  Col ret = col;
+
+  ret.r = round(ret.r * brightness);
+  ret.g = round(ret.g * brightness);
+  ret.b = round(ret.b * brightness);
+
+  return ret;
 }
 
-void setPanel(int id, int r, int g, int b)
+Col downsampleColor(Col col, int colorDepth)
+{
+  Col ret;
+
+  ret.r = ((colorDepth - 1) * 255 / col.r) * (255 / (colorDepth - 1));
+  ret.g = ((colorDepth - 1) * 255 / col.g) * (255 / (colorDepth - 1));
+  ret.b = ((colorDepth - 1) * 255 / col.b) * (255 / (colorDepth - 1));
+
+  return ret;
+}
+
+void setPixel(int id, Col col)
+{
+  pixels.setPixelColor(id, pixels.gamma32(pixels.Color(col.r, col.g, col.b)));
+}
+
+void setPanel(int id, Col col)
 {
   for(int i = 0; i < NUMPIXPERPANEL; i++)
   {
-    setPixel(panelIDs[id][i], r, g, b);
+    setPixel(panelIDs[id][i], col);
   }
 }
 
 void clearLamp()
 {
-  fillLamp(0, 0, 0);
+  fillLamp(Col(0));
 }
 
-void fillLamp(int r, int g, int b)
+void fillLamp(Col col)
 {
   for(int i = 0; i < NUMPIXELS; i++)
   {
-    setPixel(i, r, g, b);
+    setPixel(i, col);
   }
 }
