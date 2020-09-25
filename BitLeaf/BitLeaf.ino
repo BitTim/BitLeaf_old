@@ -21,7 +21,7 @@ int prevBtnMap = 0;
 
 Col clockShades[3]   = {Col(163, 190, 140), Col(143, 188, 187), Col(136, 192, 208)};
 Col clockAMShades[3] = {Col(191,  97, 106), Col(208, 135, 112), Col(235, 203, 139)};
-Col clockPMShades[3] = {Col( 94, 129, 172), Col(129, 161, 193), Col(136, 192, 208)};
+Col clockPßMShades[3] = {Col( 94, 129, 172), Col(129, 161, 193), Col(136, 192, 208)};
 
 int lampBrightness = 0;
 int clockMode = 0;
