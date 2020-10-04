@@ -21,6 +21,8 @@ void setup() {
   
   pixels.begin();
   pixels.setBrightness(255);
+  
+  Serial.begin(9600);
 
   pinMode(BTN1PIN, INPUT_PULLUP);
   pinMode(BTN2PIN, INPUT_PULLUP);
@@ -108,10 +110,34 @@ int getBtnMap()
   return btnMap;
 }
 
+Packet receivePacket()
+{
+  byte packetBuffer[16];
+  Packet packet;
+  int i = 0;
+
+  while(Serial.available())
+  {
+    packetBuffer[i++] = Serial.read();
+  }
+  
+  if(packetBuffer[0] == 'L') packet = Packet(packetBuffer);
+  return packet;
+}
+
 void changeMode(int newMode, Adafruit_NeoPixel pixels)
 {
   clearLamp();
   mode = newMode;
 
   pixels.show();
+}
+
+void* getSettingFromID(byte id)
+{
+  switch(id)
+  {
+  case SETTING_12HOUR:
+    break;
+  }
 }

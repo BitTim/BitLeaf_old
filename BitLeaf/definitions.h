@@ -70,6 +70,23 @@ struct Col
   Col(int r, int g, int b) {this->r = r; this->g = g; this->b = b;}
 };
 
+struct Packet
+{
+  byte header[2];
+  byte length;
+  byte command;
+  byte ags[12];
+  
+  Packet()             {header = {0}; length =0; command = 0; args = {0};}
+  Packet(byte* buffer)
+  {
+    memcpy(*header, *buffer, 2);
+    length = buffer[2];
+    command = buffer[3];
+    memcpy(*args, *buffer + 4, 12);
+  }
+};
+
 //================================
 // Constants
 //================================
