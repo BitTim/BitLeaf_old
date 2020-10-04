@@ -22,6 +22,8 @@
 #define MINFADINGTIME         500
 #define MAXFADINGTIME         2000
 
+#define BLINKDELAY            250
+
 //================================
 // Enums
 //================================
@@ -38,7 +40,8 @@ enum clockModes
   CLOCK_CLOCK,
   CLOCK_LIGHT,
   CLOCK_NIGHT,
-  CLOCK_SETTINGS
+  CLOCK_SETTINGS,
+  CLOCK_CHANGETIME
 };
 
 enum lightModes
@@ -53,6 +56,18 @@ enum lightMotionStages
   MOTION_DECAY,
   MOTION_LOW,
   MOTION_RISE
+};
+
+enum settingIDs
+{
+  CLOCK_TIME,
+  CLOCK_12HOUR,
+  CLOCK_FILLLIGHT,
+  CLOCK_FILLOFF,
+  CLOCK_AUTOBRIGHTNESS,
+  LIGHT_MOTION,
+  LIGHT_TEMPERATURE,
+  LIGHT_AUTOBRIGHTNESS
 };
 
 //================================
@@ -72,18 +87,18 @@ struct Col
 
 struct Packet
 {
-  byte header[2];
-  byte length;
-  byte command;
-  byte ags[12];
+  byte header[2]= {0};
+  byte len = 0;
+  byte command = 0;
+  byte args[12] = {0};
   
-  Packet()             {header = {0}; length =0; command = 0; args = {0};}
-  Packet(byte* buffer)
+  Packet() {}
+  Packet(byte* buf)
   {
-    memcpy(*header, *buffer, 2);
-    length = buffer[2];
-    command = buffer[3];
-    memcpy(*args, *buffer + 4, 12);
+    memcpy(&header, buf, 2);
+    len = buf[2];
+    command = buf[3];
+    memcpy(&args, buf + 4, len);
   }
 };
 
@@ -109,6 +124,10 @@ Col clockShades[3]   = {Col(163, 190, 140), Col(143, 188, 187), Col(136, 192, 20
 Col clockAMShades[3] = {Col(204, 123,  94), Col(214, 112,  99), Col(191,  97, 106)};
 Col clockPMShades[3] = {Col( 94, 129, 172), Col( 97, 166, 194), Col( 92, 181, 184)};
 
+Col trueCol  = Col(163, 190, 140);
+Col falseCol = Col(191,  97, 106);
+Col miscCol  = Col(129, 161, 193);
+
 float clockNightBrightness = 0.2f;
 
 //================================
@@ -128,3 +147,18 @@ bool btnJustLongPressed[2] = {false, false};
 int  btnTimer[2]           = {0, 0};
 
 int prevBtnMap = 0;
+
+//================================
+// Settings
+//================================
+
+int  numClockSettings     = 5; //5th is time
+bool clock_12hour         = false;
+bool clock_autobrightness = false;
+bool clock_fillLightOff   =  true;
+bool clock_fillOffBits    = false;
+
+int  numLightSettings     = 3;
+bool light_autobrightness = false;
+bool light_slightMotion   = true;
+int  light_temperature    = 0;

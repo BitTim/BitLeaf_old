@@ -73,10 +73,10 @@ void progressDisplay(int num, Col col)
   }
 }
 
-void binaryDisplay(int num, int panelOffset, int numPanels, Col on, Col off)
+void binaryDisplay(int num, int panelOffset, int numPanels, Col on, Col off, int numBits = 6)
 {
   Col col;
-  int resolution = (numPanels * NUMPIXPERPANEL) / 6;
+  int resolution = (numPanels * NUMPIXPERPANEL) / numBits;
   
   for(int panel = 0; panel < numPanels; panel++)
   {

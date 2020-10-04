@@ -18,11 +18,6 @@ int   motionDelay   = 100;
 
 float m             = 0;
 
-//Settings
-bool lightAsutoBrightness   = false;
-bool slightMotion     = true;
-int  lightTemperature = 0;
-
 //Funtions
 void modeLight(int btnMap)
 {
@@ -46,7 +41,7 @@ void modeLight(int btnMap)
     progressDisplay(lampBrightness, white);
     if(millis() - timer >= timerLength) timerActive = false;
   }
-  else if(slightMotion)
+  else if(light_slightMotion)
   {
     fillLamp(white);
     int cTime = millis();
